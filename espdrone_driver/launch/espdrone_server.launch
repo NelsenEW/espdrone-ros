@@ -1,0 +1,6 @@
+<?xml version="1.0"?>
+
+<launch>
+  <node pkg="espdrone_driver" type="espdrone_server.py" name="espdrone_server" output="screen">
+  </node>
+</launch>

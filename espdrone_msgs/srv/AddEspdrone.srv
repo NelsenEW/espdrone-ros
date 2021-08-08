@@ -1,0 +1,18 @@
+string uri
+string tf_prefix
+float32 roll_trim
+float32 pitch_trim
+bool enable_logging
+bool enable_parameters
+LogBlock[] log_blocks
+bool use_ros_time
+bool enable_logging_image
+bool enable_logging_imu
+bool enable_logging_battery
+bool enable_logging_motor
+bool enable_logging_zranger
+bool enable_logging_pose
+bool enable_pose_tf_publisher
+bool enable_logging_setpoint
+---
+bool success

@@ -1,0 +1,9 @@
+Header header
+float32 voltage
+int8 state
+
+int8 STATE_BATTERY=0
+int8 STATE_CHARGING=1
+int8 STATE_CHARGED=2
+int8 STATE_LOW_POWER=3
+int8 STATE_SHUTDOWN=4

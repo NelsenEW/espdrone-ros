@@ -1,0 +1,41 @@
+<?xml version="1.0"?>
+
+<launch>
+  <arg name="uri" default="192.168.0.103" />
+  <arg name="tf_prefix" default="espdrone_103" />
+  <arg name="roll_trim" default="0" />
+  <arg name="pitch_trim" default="0" />
+  <arg name="enable_logging" default="True" />
+  <arg name="enable_parameters" default="True" />
+  <arg name="use_ros_time" default="True" />
+  <arg name="enable_logging_image" default="True" />
+  <arg name="enable_logging_imu" default="True" />
+  <arg name="enable_logging_battery" default="True" />
+  <arg name="enable_logging_motor" default="True" />
+  <arg name="enable_logging_zranger" default="False" />
+  <arg name="enable_logging_pose" default="True" />
+  <arg name="enable_pose_tf_publisher" default="True" />
+  <arg name="enable_logging_setpoint" default="True" />
+  <arg name="custom_log_file" default="$(find espdrone_driver)/config/log.yaml"/>
+
+  <node pkg="espdrone_driver" type="espdrone_add.py" name="espdrone_add" output="screen">
+    <param name="uri" value="$(arg uri)" />
+    <param name="tf_prefix" value="$(arg tf_prefix)" />
+    <param name="roll_trim" value="$(arg roll_trim)" />
+    <param name="pitch_trim" value="$(arg pitch_trim)" />
+    <param name="enable_logging" value="$(arg enable_logging)" />
+    <param name="enable_parameters" value="$(arg enable_parameters)" />
+    <param name="use_ros_time" value="$(arg use_ros_time)" />
+    <param name="enable_logging_image" value="$(arg enable_logging_image)" />
+    <param name="enable_logging_imu" value="$(arg enable_logging_imu)" />
+    <param name="enable_logging_battery" value="$(arg enable_logging_battery)" />
+    <param name="enable_logging_motor" value="$(arg enable_logging_motor)" />
+    <param name="enable_logging_zranger" value="$(arg enable_logging_zranger)" />
+    <param name="enable_logging_pose" value="$(arg enable_logging_pose)" />
+    <param name="enable_pose_tf_publisher" value="$(arg enable_pose_tf_publisher)" />
+    <param name="enable_logging_setpoint" value="$(arg enable_logging_setpoint)" />
+    <rosparam command="load" file="$(arg custom_log_file)"/>
+  </node>
+  
+
+</launch>

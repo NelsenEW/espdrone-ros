@@ -1,0 +1,13 @@
+# set to false to estimate system config, true to load system config from file
+bool load_from_file
+
+# if load_from_file is true, this file will be used to load system config
+string filename
+
+# contains the list of lighthouse modes that should be used for state estimation
+# if left empty, all available modes will be used
+# this is only used when load_from_file is false
+uint32[] valid_modes
+---
+bool status
+LighthouseGeo[] lighthouses
