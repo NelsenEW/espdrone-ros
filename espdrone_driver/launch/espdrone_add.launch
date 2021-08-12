@@ -17,7 +17,7 @@
   <arg name="enable_pose_tf_publisher" default="True" />
   <arg name="enable_logging_setpoint" default="True" />
   <arg name="custom_log_file" default="$(find espdrone_driver)/config/log.yaml"/>
-  <arg name="camera_info_file" default="$(find uavionics_dip_bringup)/config/esp_drone/camera_calib/ost.yaml"/>
+  <arg name="camera_info_file" default=""/>
 
   <node pkg="espdrone_driver" type="espdrone_add.py" name="espdrone_add" output="screen">
     <param name="uri" value="$(arg uri)" />
