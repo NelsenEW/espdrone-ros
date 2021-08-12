@@ -8,10 +8,14 @@ project(espdrone_utils)
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
 ## is used, also find other catkin packages
 find_package(catkin REQUIRED COMPONENTS
-  espdrone_msgs
-  geometry_msgs
+  roscpp
   rospy
   std_msgs
+  espdrone_msgs
+  geometry_msgs
+  sensor_msgs
+  cv_bridge
+  image_transport
 )
 
 ## System dependencies are found with CMake's conventions
@@ -104,7 +108,7 @@ find_package(catkin REQUIRED COMPONENTS
 ## CATKIN_DEPENDS: catkin_packages dependent projects also need
 ## DEPENDS: system dependencies of this project that dependent projects also need
 catkin_package(
-#  INCLUDE_DIRS include
+  INCLUDE_DIRS include
 #  LIBRARIES espdrone_utils
 #  CATKIN_DEPENDS espdrone_msgs geometry_msgs rospy std_msgs
 #  DEPENDS system_lib
@@ -117,9 +121,12 @@ catkin_package(
 ## Specify additional locations of header files
 ## Your package locations should be listed before other locations
 include_directories(
-# include
+  include
   ${catkin_INCLUDE_DIRS}
 )
+
+add_executable(image_transport_republisher src/image_transport_republisher.cpp)
+target_link_libraries(image_transport_republisher ${catkin_LIBRARIES})
 
 ## Declare a C++ library
 # add_library(${PROJECT_NAME}
