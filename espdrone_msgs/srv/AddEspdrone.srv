@@ -14,5 +14,6 @@ bool enable_logging_zranger
 bool enable_logging_pose
 bool enable_pose_tf_publisher
 bool enable_logging_setpoint
+string camera_info_file
 ---
 bool success

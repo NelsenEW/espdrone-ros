@@ -1,15 +1,16 @@
 <?xml version="1.0"?>
 <launch>
 
-  <arg name="drone_name" default="espdrone_08"/>
-  <arg name="waypoints_list" default="[[-1.3, 1.0, 0.0, 0], [-2.0, 0.5, 0.0, 0]]"/>
-  <arg name="transition_duration" default="4.0"/>
+  <arg name="drone_name" default="espdrone_106"/>
+  <arg name="waypoints_list" default="[[-1.8, 0.0, -0.5, 5.0], [-1.4, 0.5, 0.0, 5.0]]"/>
+  <arg name="transition_duration" default="10.0"/>
   <arg name="goal_threshold" default="0.10"/>
 
-  <node pkg="espdrone_utils" type="send_waypoints.py" name="waypoint_sender" ns="$(arg drone_name)" output="screen">
-    <param name="waypoints_list" type="String" value="$(arg waypoints_list)"/>
-    <param name="transition_duration" type="Float32" value="$(arg transition_duration)"/>
-    <param name="goal_threshold" type="Float32" value="$(arg goal_threshold)"/>
+  <node pkg="espdrone_utils" type="send_waypoints.py" name="waypoint_sender" output="screen">
+    <param name="drone_name" type="string" value="$(arg drone_name)"/>
+    <param name="waypoints_list" type="string" value="$(arg waypoints_list)"/>
+    <param name="transition_duration" type="double" value="$(arg transition_duration)"/>
+    <param name="goal_threshold" type="double" value="$(arg goal_threshold)"/>
   </node>
 
 </launch>

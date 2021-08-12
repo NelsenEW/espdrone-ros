@@ -3,6 +3,7 @@
 # Edlib
 from os import link
 from threading import Thread
+import yaml
 from edlib.espdrone.localization import Localization
 from edlib.espdrone.log import LogConfig
 from edlib.espdrone.mem import MemoryElement, TrajectoryMemory
@@ -71,6 +72,7 @@ from geometry_msgs.msg import TransformStamped
 from geometry_msgs.msg import Quaternion
 from sensor_msgs.msg import Imu
 from sensor_msgs.msg import Image
+from sensor_msgs.msg import CameraInfo
 from cv_bridge import CvBridge
 
 class EspdroneROS:
@@ -125,6 +127,7 @@ class EspdroneROS:
         enable_logging_pose: bool,
         enable_pose_tf_publisher: bool,
         enable_logging_setpoint: bool,
+        camera_info_file: str
     ):
         self._tf_prefix = tf_prefix
         self._is_emergency = False
@@ -144,7 +147,9 @@ class EspdroneROS:
         self._enable_logging_pose = enable_logging_pose
         self._enable_pose_tf_publisher = enable_pose_tf_publisher
         self._enable_logging_setpoint = enable_logging_setpoint
+        self._camera_info_file = camera_info_file
         self._global_frame = "world"
+        self._camera_info = None
 
         # Drone name should not be empty, the default is the last two digit of the ip address
         if not self._tf_prefix:
@@ -177,8 +182,9 @@ class EspdroneROS:
         self._memory_handler = self._ed.mem
         self._camera = self._ed.camera
 
-        self._global_frame = rospy.get_param("global_frame", "map")
+        self._global_frame = rospy.get_param("~global_frame", "map")
 
+        self._load_camera_info()
         self._initialize_subscribers()
         self._initialize_publishers()
         self._initialize_services()
@@ -246,6 +252,9 @@ class EspdroneROS:
             self._pub_image = rospy.Publisher(
                 self._tf_prefix + "/camera_stream", Image, queue_size=1
             )
+            self._pub_camera_info = rospy.Publisher(
+                self._tf_prefix + "/camera_info", CameraInfo, queue_size=1
+            )
 
         if self._enable_logging_imu:
             self._pub_imu = rospy.Publisher(
@@ -281,6 +290,23 @@ class EspdroneROS:
                 GenericLogData,
                 queue_size=1,
             )
+    
+    def _load_camera_info(self):
+        if not self._camera_info_file:
+            rospy.logwarn(f"[{self._tf_prefix}]: Camera info file is not provided, will not\
+                            publish camera info")
+        else:
+            with open(self._camera_info_file, 'r') as camera_info_stream:
+                camera_info = yaml.safe_load(camera_info_stream)
+            self._camera_info = CameraInfo( height = camera_info['image_height'],
+                                            width = camera_info['image_width'],
+                                            distortion_model = camera_info['distortion_model'],
+                                            D = camera_info['distortion_coefficients']['data'],
+                                            K = camera_info['camera_matrix']['data'],
+                                            R = camera_info['rectification_matrix']['data'],
+                                            P = camera_info['projection_matrix']['data']
+                                        )
+            self._camera_info.header.frame_id = self._tf_prefix
     
     def _initialize_services(self):
         # High-level setpoints
@@ -593,6 +619,11 @@ class EspdroneROS:
         msg = bridge.cv2_to_imgmsg(image, 'bgr8')
         msg.header.frame_id = self._tf_prefix + "/base_link"
         self._pub_image.publish(msg)
+        
+        if self._camera_info:
+            # CameraInfo timestamp must match image's timestamp
+            # self._camera_info.header.stamp = rospy.Time.now()
+            self._pub_camera_info.publish(self._camera_info)
 
     def on_imu_data(self, timestamp_ms: int, data: dict(), *_):
         if self._enable_logging_imu:
@@ -743,7 +774,7 @@ class EspdroneROS:
 
     def on_console(self, msg: str):
         self.__static_message_buffer += msg
-        print(msg)
+        # print(msg)
         if "\n" in self.__static_message_buffer:
             msgs = self.__static_message_buffer.splitlines()
             self.__static_message_buffer = msg.pop()
@@ -792,21 +823,21 @@ class EspdroneROS:
         return Stop()
 
     def go_to(self, req: GoToRequest):
-        if self._is_flying:
-            rospy.loginfo(f"[{self._tf_prefix}]: GoTo requested")
-            self._high_level_commander.go_to(
-                req.goal.x,
-                req.goal.y,
-                req.goal.z,
-                req.yaw,
-                req.duration.to_sec(),
-                req.relative,
-                req.groupMask,
-            )
-        else:
-            rospy.logerr(
-                f"[{self._tf_prefix}]: Drone is not flying, unable to service go_to request"
-            )
+        # if self._is_flying:
+        rospy.loginfo(f"[{self._tf_prefix}]: GoTo requested")
+        self._high_level_commander.go_to(
+            req.goal.x,
+            req.goal.y,
+            req.goal.z,
+            req.yaw,
+            req.duration.to_sec(),
+            req.relative,
+            req.groupMask,
+        )
+        # else:
+        #     rospy.logerr(
+        #         f"[{self._tf_prefix}]: Drone is not flying, unable to service go_to request"
+        #     )
         return GoToResponse()
 
     def motor_set(self, req: MotorsRequest):
@@ -937,7 +968,8 @@ class EspdroneServer:
             req.enable_logging_zranger,
             req.enable_logging_pose,
             req.enable_pose_tf_publisher,
-            req.enable_logging_setpoint
+            req.enable_logging_setpoint,
+            req.camera_info_file
         )
 
         self._espdrones[req.uri] = ed
