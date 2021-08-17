@@ -1,4 +1,4 @@
 genericLogTopics: ["controller_rpy", "stabilizer_rpy"]
-genericLogTopicFrequencies: [10, 10]   # 10 ms for both
+genericLogTopicFrequencies: [50, 50]   # 10 ms for both
 genericLogTopic_controller_rpy_Variables: ["controller.pitch", "controller.roll", "controller.yaw"]
 genericLogTopic_stabilizer_rpy_Variables: ["stabilizer.pitch", "stabilizer.roll", "stabilizer.yaw"]

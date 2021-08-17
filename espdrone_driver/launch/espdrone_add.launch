@@ -1,8 +1,8 @@
 <?xml version="1.0"?>
 
 <launch>
-  <arg name="uri" default="192.168.0.103" />
-  <arg name="tf_prefix" default="espdrone_103" />
+  <arg name="uri" default="192.168.0.106" />
+  <arg name="tf_prefix" default="espdrone_106" />
   <arg name="roll_trim" default="0" />
   <arg name="pitch_trim" default="0" />
   <arg name="enable_logging" default="True" />
@@ -14,7 +14,7 @@
   <arg name="enable_logging_motor" default="True" />
   <arg name="enable_logging_zranger" default="False" />
   <arg name="enable_logging_pose" default="True" />
-  <arg name="enable_pose_tf_publisher" default="True" />
+  <arg name="enable_pose_tf_publisher" default="False" />
   <arg name="enable_logging_setpoint" default="True" />
   <arg name="custom_log_file" default="$(find espdrone_driver)/config/log.yaml"/>
   <arg name="camera_info_file" default=""/>

@@ -1,27 +1,24 @@
 #!/usr/bin/python3
 
-# Edlib
-from os import link
-from threading import Thread
-import yaml
+# Edlib Module
 from edlib.espdrone.localization import Localization
 from edlib.espdrone.log import LogConfig
 from edlib.espdrone.mem import MemoryElement, TrajectoryMemory
 from edlib.espdrone import Espdrone
 import edlib.crtp
 
-# Utility
+# Utility Module
 from dataclasses import dataclass
 from typing import Dict, List
 import math
-
+import yaml
 
 # ROS
 import rospy
 import tf2_ros
 import tf_conversions
 
-# Espdrone srvs
+# Espdrone Srvs
 from espdrone_msgs.srv import AddEspdrone, AddEspdroneRequest, AddEspdroneResponse
 from espdrone_msgs.srv import (
     RemoveEspdrone,
@@ -50,7 +47,7 @@ from espdrone_msgs.srv import (
 )
 from espdrone_msgs.srv import Motors, MotorsRequest, MotorsResponse
 
-# Espdrone msgs
+# Espdrone Msgs
 from espdrone_msgs.msg import LogBlock
 from espdrone_msgs.msg import GenericLogData
 from espdrone_msgs.msg import FullState
@@ -61,7 +58,7 @@ from espdrone_msgs.msg import BatteryStatus
 from espdrone_msgs.msg import MotorStatus
 from espdrone_msgs.msg import TofMeasurement
 
-# Common Msgs & Srvs
+# ROS Msgs & Srvs
 from std_msgs.msg import Empty
 from std_srvs.srv import Trigger, TriggerRequest, TriggerResponse
 from std_srvs.srv import SetBool, SetBoolRequest, SetBoolResponse
@@ -75,6 +72,7 @@ from sensor_msgs.msg import Image
 from sensor_msgs.msg import CameraInfo
 from cv_bridge import CvBridge
 
+
 class EspdroneROS:
     @dataclass
     class LogImuData:
@@ -84,7 +82,7 @@ class EspdroneROS:
         gyro_x: float
         gyro_y: float
         gyro_z: float
-        #zrange: int
+        # zrange: int
 
     @dataclass
     class LogPowerData:
@@ -127,7 +125,7 @@ class EspdroneROS:
         enable_logging_pose: bool,
         enable_pose_tf_publisher: bool,
         enable_logging_setpoint: bool,
-        camera_info_file: str
+        camera_info_file: str,
     ):
         self._tf_prefix = tf_prefix
         self._is_emergency = False
@@ -150,11 +148,14 @@ class EspdroneROS:
         self._camera_info_file = camera_info_file
         self._global_frame = "world"
         self._camera_info = None
+        self._log_init = False
+        self._param_init = False
+        self._initialize = False
 
         # Drone name should not be empty, the default is the last two digit of the ip address
         if not self._tf_prefix:
             self._tf_prefix = f"espdrone_{link_uri[-2:]}"
-        
+
         # Setup espdrone
         start = rospy.Time.now()
         self._ed = Espdrone(name=self._tf_prefix, rw_cache="./cache")
@@ -166,35 +167,41 @@ class EspdroneROS:
         self._ed.connection_lost.add_callback(self._connection_lost)
         self._ed.disconnected.add_callback(self._disconnect)
 
-        self.__static_message_buffer = str()
         self._ed.open_link(link_uri)
+        self.__static_message_buffer = str()
 
-        while not self._is_connected and not rospy.is_shutdown():
+        while not self._is_connected and self._ed.link and not rospy.is_shutdown():
             rospy.loginfo_throttle(
-                1, f"[{self._tf_prefix}] Espdrone is not connected, waiting..."
+                1, f"[{self._tf_prefix}]: Espdrone is not connected, waiting..."
             )
-        self._ext_pos_handler = self._ed.extpos
-        self._commander = self._ed.commander
-        self._high_level_commander = self._ed.high_level_commander
-        self._localization_handler = self._ed.loc
-        self._log_handler = self._ed.log
-        self._param_handler = self._ed.param
-        self._memory_handler = self._ed.mem
-        self._camera = self._ed.camera
+        if self._is_connected:
+            self._ext_pos_handler = self._ed.extpos
+            self._commander = self._ed.commander
+            self._high_level_commander = self._ed.high_level_commander
+            self._localization_handler = self._ed.loc
+            self._log_handler = self._ed.log
+            self._param_handler = self._ed.param
+            self._memory_handler = self._ed.mem
+            self._camera = self._ed.camera
 
-        self._global_frame = rospy.get_param("~global_frame", "map")
+            self._global_frame = rospy.get_param("~global_frame", "map")
 
-        self._load_camera_info()
-        self._initialize_subscribers()
-        self._initialize_publishers()
-        self._initialize_services()
-        if self._enable_parameters:
+            self._load_camera_info()
+            self._initialize_subscribers()
+            self._initialize_publishers()
+            self._initialize_services()
+
+        if self._enable_parameters and self._is_connected:
             self._initialize_param()
-        if self._enable_logging:
+        if self._enable_logging and self._is_connected:
             self._initialize_log()
 
-        rospy.loginfo(f"[{self._tf_prefix}]: Ready to start!")
-        rospy.loginfo(f"[{self._tf_prefix}]: Elapsed: {(rospy.Time.now() - start).to_sec()}")
+        if self._is_connected:
+            rospy.loginfo(f"[{self._tf_prefix}]: Ready to start!")
+            rospy.loginfo(
+                f"[{self._tf_prefix}]: Elapsed: {(rospy.Time.now() - start).to_sec()}"
+            )
+            self._initialize = True
 
     def _initialize_subscribers(self):
         self._sub_cmd_vel = rospy.Subscriber(
@@ -203,7 +210,7 @@ class EspdroneROS:
             queue_size=1,
             callback=self.cmd_vel_changed,
         )
-        
+
         self._sub_cmd_full_state = rospy.Subscriber(
             self._tf_prefix + "/cmd_full_state",
             FullState,
@@ -257,9 +264,7 @@ class EspdroneROS:
             )
 
         if self._enable_logging_imu:
-            self._pub_imu = rospy.Publisher(
-                self._tf_prefix + "/imu", Imu, queue_size=1
-            )
+            self._pub_imu = rospy.Publisher(self._tf_prefix + "/imu", Imu, queue_size=1)
 
         if self._enable_logging_battery:
             self._pub_battery = rospy.Publisher(
@@ -290,24 +295,27 @@ class EspdroneROS:
                 GenericLogData,
                 queue_size=1,
             )
-    
+
     def _load_camera_info(self):
         if not self._camera_info_file:
-            rospy.logwarn(f"[{self._tf_prefix}]: Camera info file is not provided, will not\
-                            publish camera info")
+            rospy.logwarn(
+                f"[{self._tf_prefix}]: Camera info file is not provided, will not\
+                            publish camera info"
+            )
         else:
-            with open(self._camera_info_file, 'r') as camera_info_stream:
+            with open(self._camera_info_file, "r") as camera_info_stream:
                 camera_info = yaml.safe_load(camera_info_stream)
-            self._camera_info = CameraInfo( height = camera_info['image_height'],
-                                            width = camera_info['image_width'],
-                                            distortion_model = camera_info['distortion_model'],
-                                            D = camera_info['distortion_coefficients']['data'],
-                                            K = camera_info['camera_matrix']['data'],
-                                            R = camera_info['rectification_matrix']['data'],
-                                            P = camera_info['projection_matrix']['data']
-                                        )
+            self._camera_info = CameraInfo(
+                height=camera_info["image_height"],
+                width=camera_info["image_width"],
+                distortion_model=camera_info["distortion_model"],
+                D=camera_info["distortion_coefficients"]["data"],
+                K=camera_info["camera_matrix"]["data"],
+                R=camera_info["rectification_matrix"]["data"],
+                P=camera_info["projection_matrix"]["data"],
+            )
             self._camera_info.header.frame_id = self._tf_prefix
-    
+
     def _initialize_services(self):
         # High-level setpoints
         self._service_set_group_mask = rospy.Service(
@@ -346,93 +354,88 @@ class EspdroneROS:
 
     def _initialize_param(self):
         # Wait until all the parameters have been updated
-        while not self._param_handler.is_updated:
-            rospy.loginfo("Waiting for param update")
-            rospy.sleep(1)
-        rospy.loginfo(f"[{self._tf_prefix}] Updating parameters...")
-        for group in self._param_handler.values.keys():
-            for name in self._param_handler.values[group].keys():
-                param_name = "/" + self._tf_prefix + "/" + group + "/" + name
-                rospy.set_param(param_name, self._param_handler.values[group][name])
-        self._service_update_params = rospy.Service(
-            self._tf_prefix + "/update_params",
-            UpdateParams,
-            self.update_params,
-        )
+        while not self._param_handler.is_updated and self._is_connected:
+            rospy.loginfo_throttle(1, f"[{self._tf_prefix}]: Waiting for param update")
+        if self._is_connected:
+            rospy.loginfo(f"[{self._tf_prefix}] Updating parameters...")
+            param_values: Dict[str, Dict[str, float]] = self._param_handler.values
+            for group in param_values.keys():
+                for name in param_values[group].keys():
+                    param_name = "/" + self._tf_prefix + "/" + group + "/" + name
+                    rospy.set_param(param_name, param_values[group][name])
+            self._service_update_params = rospy.Service(
+                self._tf_prefix + "/update_params",
+                UpdateParams,
+                self.update_params,
+            )
+            self._param_init = True
 
     def _initialize_log(self):
-        log_block_generic: List[LogConfig] = list()
 
         if self._enable_logging_image:
             self._camera.image_received_cb.add_callback(self.on_camera_data)
             self._camera.start()
-                 
+
         if self._enable_logging_imu:
-            log_block_imu = LogConfig("IMU", 20)
-            log_block_imu.add_variable("acc.x")
-            log_block_imu.add_variable("acc.y")
-            log_block_imu.add_variable("acc.z")
-            log_block_imu.add_variable("gyro.x")
-            log_block_imu.add_variable("gyro.y")
-            log_block_imu.add_variable("gyro.z")
-            self._log_handler.add_config(log_block_imu)
-            log_block_imu.data_received_cb.add_callback(self.on_imu_data)
-            log_block_imu.start()
+            self.log_block_imu = LogConfig("IMU", 50)
+            self.log_block_imu.add_variable("acc.x")
+            self.log_block_imu.add_variable("acc.y")
+            self.log_block_imu.add_variable("acc.z")
+            self.log_block_imu.add_variable("gyro.x")
+            self.log_block_imu.add_variable("gyro.y")
+            self.log_block_imu.add_variable("gyro.z")
+            self._log_handler.add_config(self.log_block_imu)
+            self.log_block_imu.data_received_cb.add_callback(self.on_imu_data)
+            self.log_block_imu.start()
 
         if (
             self._enable_logging_battery
             or self._enable_logging_motor
             or self._enable_logging_zranger
         ):
-            log_block_power = LogConfig("Power", 500)
-            log_block_power.add_variable("pm.vbat")
-            log_block_power.add_variable("pm.state")
-            log_block_power.add_variable("motor.m1")
-            log_block_power.add_variable("motor.m2")
-            log_block_power.add_variable("motor.m3")
-            log_block_power.add_variable("motor.m4")
-            # log_block_power.add_variable("range.zrange")
-            self._log_handler.add_config(log_block_power)
-            log_block_power.data_received_cb.add_callback(
-                self.on_power_data
-            )
-            log_block_power.start()
+            self.log_block_power = LogConfig("Power", 500)
+            self.log_block_power.add_variable("pm.vbat")
+            self.log_block_power.add_variable("pm.state")
+            self.log_block_power.add_variable("motor.m1")
+            self.log_block_power.add_variable("motor.m2")
+            self.log_block_power.add_variable("motor.m3")
+            self.log_block_power.add_variable("motor.m4")
+            # self.log_block_power.add_variable("range.zrange")
+            self._log_handler.add_config(self.log_block_power)
+            self.log_block_power.data_received_cb.add_callback(self.on_power_data)
+            self.log_block_power.start()
 
-        if self._enable_logging_pose or self._enable_logging_battery:
-            log_block_pose = LogConfig("Pose", 10)
-            log_block_pose.add_variable("stateEstimate.x")
-            log_block_pose.add_variable("stateEstimate.y")
-            log_block_pose.add_variable("stateEstimate.z")
-            log_block_pose.add_variable("stateEstimateZ.quat")
-            self._log_handler.add_config(log_block_pose)
-            log_block_pose.data_received_cb.add_callback(self.on_pose_data)
-            log_block_pose.start()
+        if self._enable_logging_pose:
+            self.log_block_pose = LogConfig("Pose", 20)
+            self.log_block_pose.add_variable("stateEstimate.x")
+            self.log_block_pose.add_variable("stateEstimate.y")
+            self.log_block_pose.add_variable("stateEstimate.z")
+            self.log_block_pose.add_variable("stateEstimateZ.quat")
+            self._log_handler.add_config(self.log_block_pose)
+            self.log_block_pose.data_received_cb.add_callback(self.on_pose_data)
+            self.log_block_pose.start()
 
         if self._enable_logging_setpoint:
-            log_block_setpoint = LogConfig("Setpoint", 10)
-            log_block_setpoint.add_variable("ctrltarget.x")
-            log_block_setpoint.add_variable("ctrltarget.y")
-            log_block_setpoint.add_variable("ctrltarget.z")
-            log_block_setpoint.add_variable("ctrltarget.yaw")
-            self._log_handler.add_config(log_block_setpoint)
-            log_block_setpoint.data_received_cb.add_callback(
-                self.on_setpoint_data
-            )
-            log_block_setpoint.start()
+            self.log_block_setpoint = LogConfig("Setpoint", 100)
+            self.log_block_setpoint.add_variable("ctrltarget.x")
+            self.log_block_setpoint.add_variable("ctrltarget.y")
+            self.log_block_setpoint.add_variable("ctrltarget.z")
+            self.log_block_setpoint.add_variable("ctrltarget.yaw")
+            self._log_handler.add_config(self.log_block_setpoint)
+            self.log_block_setpoint.data_received_cb.add_callback(self.on_setpoint_data)
+            self.log_block_setpoint.start()
 
+        self.log_block_generic: List[LogConfig] = list()
         for i in range(len(self._log_blocks)):
-            log_block_generic.append(
-                LogConfig(
-                    "Generic_" + str(i), self._log_blocks[i].frequency
-                )
+            self.log_block_generic.append(
+                LogConfig("Generic_" + str(i), self._log_blocks[i].frequency)
             )
             for variable in self._log_blocks[i].variables:
-                log_block_generic[i].add_variable(variable)
-            self._log_handler.add_config(log_block_generic[i])
-            log_block_generic[i].data_received_cb.add_callback(
-                self.on_log_custom
-            )
-            log_block_generic[i].start()
+                self.log_block_generic[i].add_variable(variable)
+            self._log_handler.add_config(self.log_block_generic[i])
+            self.log_block_generic[i].data_received_cb.add_callback(self.on_log_custom)
+            self.log_block_generic[i].start()
+        self._log_init = True
 
     def _connect(self, link_uri):
         rospy.loginfo(f"[{self._tf_prefix}]: Connected to {link_uri}")
@@ -442,25 +445,54 @@ class EspdroneROS:
         """Callback when connection initial connection fails (i.e no Espdrone
         at the specified address)"""
         rospy.logerr(f"[{self._tf_prefix}]: Connection to {link_uri} failed: {msg}")
-        self.is_connected = False
 
     def _connection_lost(self, link_uri, msg):
         """Callback when disconnected after a connection has been made (i.e
         Espdrone moves out of range)"""
         rospy.logerr(f"[{self._tf_prefix}]: Connection to {link_uri} lost: {msg}")
-        self.is_connected = False
-
+        if self._initialize:
+            remove_espdrone_service = rospy.ServiceProxy(
+                "/remove_espdrone", RemoveEspdrone
+            )
+            remove_espdrone_request = RemoveEspdroneRequest()
+            remove_espdrone_request.uri = self._ed.link_uri
+            remove_espdrone_service.call(remove_espdrone_request)
 
     def _disconnect(self, link_uri):
         if self._is_connected:
             rospy.loginfo(f"[{self._tf_prefix}]: Disconnected from {link_uri}")
             self._is_connected = False
+            if self._enable_logging and self._log_init:
+                self.__unregister_logs()
             self._ed.close_link()
+            if self._enable_parameters and self._param_init:
+                self.__unregister_parameters()
+            self.__unregister_services()
             self.__unregister_subscribers()
             self.__unregister_publishers()
-            self.__unregister_services()
-            if self._enable_parameters:
-                self.__unregister_parameters()
+
+    def __unregister_logs(self):
+        if self._enable_logging_image:
+            self._camera.image_received_cb.remove_callback(self.on_camera_data)
+        if self._enable_logging_imu:
+            self.log_block_imu.data_received_cb.remove_callback(self.on_imu_data)
+        if (
+            self._enable_logging_battery
+            or self._enable_logging_motor
+            or self._enable_logging_zranger
+        ):
+            self.log_block_power.data_received_cb.remove_callback(self.on_power_data)
+        if self._enable_logging_pose:
+            self.log_block_pose.data_received_cb.remove_callback(self.on_pose_data)
+        if self._enable_logging_setpoint:
+            self.log_block_setpoint.data_received_cb.remove_callback(
+                self.on_setpoint_data
+            )
+        if self.log_block_generic:
+            for log_block in self.log_block_generic:
+                log_block.data_received_cb.remove_callback(self.on_log_custom)
+            self.log_block_generic = []
+        self._log_handler.refresh_toc(None, None)
 
     def __unregister_subscribers(self):
         self._sub_cmd_full_state.unregister()
@@ -491,7 +523,7 @@ class EspdroneROS:
             for key in self._pub_log_data_generic.keys():
                 self._pub_log_data_generic[key].unregister()
             self._pub_log_data_generic = {}
-        
+
     def __unregister_services(self):
         self._service_set_group_mask.shutdown()
         self._service_takeoff.shutdown()
@@ -504,7 +536,7 @@ class EspdroneROS:
         self._service_start_trajectory.shutdown()
         self._service_emergency.shutdown()
         self._service_motor_set.shutdown()
-        if self._enable_parameters:
+        if self._enable_parameters and self._param_init:
             self._service_update_params.shutdown()
 
     def __unregister_parameters(self):
@@ -530,7 +562,7 @@ class EspdroneROS:
             rospy.set_param("/" + self._tf_prefix + "/stabilizer/stop", False)
             rospy.logerr(f"[{self._tf_prefix}]: Emergency reset")
             self._is_emergency = False
-        return SetBoolResponse(success = self._is_emergency)
+        return SetBoolResponse(success=self._is_emergency)
 
     def update_param(self, group: str, name: str):
         value = rospy.get_param("/" + self._tf_prefix + "/" + group + "/" + name)
@@ -616,10 +648,10 @@ class EspdroneROS:
 
     def on_camera_data(self, image, fps):
         bridge = CvBridge()
-        msg = bridge.cv2_to_imgmsg(image, 'bgr8')
+        msg = bridge.cv2_to_imgmsg(image, "bgr8")
         msg.header.frame_id = self._tf_prefix + "/base_link"
         self._pub_image.publish(msg)
-        
+
         if self._camera_info:
             # CameraInfo timestamp must match image's timestamp
             # self._camera_info.header.stamp = rospy.Time.now()
@@ -774,7 +806,6 @@ class EspdroneROS:
 
     def on_console(self, msg: str):
         self.__static_message_buffer += msg
-        # print(msg)
         if "\n" in self.__static_message_buffer:
             msgs = self.__static_message_buffer.splitlines()
             self.__static_message_buffer = msg.pop()
@@ -916,6 +947,7 @@ class EspdroneROS:
         res.success = self._is_emergency
         return res
 
+
 class EspdroneServer:
     def __init__(self):
         self._espdrones: Dict[str, EspdroneROS] = {}
@@ -928,7 +960,7 @@ class EspdroneServer:
     def add_espdrone(self, req: AddEspdroneRequest):
         if req.uri in self._espdrones:
             rospy.logerr(f"Cannot add {req.uri}, already added")
-            return AddEspdroneResponse(success = False)
+            return AddEspdroneResponse(success=False)
 
         rospy.loginfo(
             """Adding drone with ip {} as {} with trim({}, {}). 
@@ -969,22 +1001,26 @@ class EspdroneServer:
             req.enable_logging_pose,
             req.enable_pose_tf_publisher,
             req.enable_logging_setpoint,
-            req.camera_info_file
+            req.camera_info_file,
         )
-
-        self._espdrones[req.uri] = ed
-        return AddEspdroneResponse(success=False)
+        if ed._is_connected:
+            self._espdrones[req.uri] = ed
+            return AddEspdroneResponse(success=True)
+        else:
+            rospy.logerr(f"Failed to add {req.tf_prefix} with ip: {req.uri}")
+            return AddEspdroneResponse(success=False)
 
     def remove_espdrone(self, req: RemoveEspdroneRequest):
         if req.uri not in self._espdrones:
             rospy.logerr(f"Cannot remove ip {req.uri}, not connected")
             return RemoveEspdroneResponse(success=False)
-        rospy.loginfo(f"Removing Espdrone with ip {req.uri}")
+        rospy.logwarn(f"Removing Espdrone with ip {req.uri}")
         self._espdrones[req.uri].disconnect()
         del self._espdrones[req.uri]
 
-        rospy.loginfo(f"Espdrone ip {req.uri} removed")
+        rospy.logwarn(f"Espdrone ip {req.uri} removed")
         return RemoveEspdroneResponse(success=True)
+
 
 def main():
     rospy.init_node("espdrone_server")
