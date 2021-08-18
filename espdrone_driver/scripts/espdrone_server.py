@@ -377,7 +377,7 @@ class EspdroneROS:
             self._camera.start()
 
         if self._enable_logging_imu:
-            self.log_block_imu = LogConfig("IMU", 50)
+            self.log_block_imu = LogConfig("IMU", 10)
             self.log_block_imu.add_variable("acc.x")
             self.log_block_imu.add_variable("acc.y")
             self.log_block_imu.add_variable("acc.z")
@@ -393,7 +393,7 @@ class EspdroneROS:
             or self._enable_logging_motor
             or self._enable_logging_zranger
         ):
-            self.log_block_power = LogConfig("Power", 500)
+            self.log_block_power = LogConfig("Power", 50)
             self.log_block_power.add_variable("pm.vbat")
             self.log_block_power.add_variable("pm.state")
             self.log_block_power.add_variable("motor.m1")
@@ -406,7 +406,7 @@ class EspdroneROS:
             self.log_block_power.start()
 
         if self._enable_logging_pose:
-            self.log_block_pose = LogConfig("Pose", 20)
+            self.log_block_pose = LogConfig("Pose", 10)
             self.log_block_pose.add_variable("stateEstimate.x")
             self.log_block_pose.add_variable("stateEstimate.y")
             self.log_block_pose.add_variable("stateEstimate.z")
@@ -854,7 +854,6 @@ class EspdroneROS:
         return Stop()
 
     def go_to(self, req: GoToRequest):
-        # if self._is_flying:
         rospy.loginfo(f"[{self._tf_prefix}]: GoTo requested")
         self._high_level_commander.go_to(
             req.goal.x,
@@ -865,10 +864,6 @@ class EspdroneROS:
             req.relative,
             req.groupMask,
         )
-        # else:
-        #     rospy.logerr(
-        #         f"[{self._tf_prefix}]: Drone is not flying, unable to service go_to request"
-        #     )
         return GoToResponse()
 
     def motor_set(self, req: MotorsRequest):
