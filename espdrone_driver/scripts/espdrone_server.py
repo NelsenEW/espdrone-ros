@@ -43,7 +43,7 @@ from espdrone_msgs.srv import Stop, StopRequest, StopResponse
 from espdrone_msgs.srv import (
     UpdateParams,
     UpdateParamsRequest,
-    UploadTrajectoryResponse,
+    UpdateParamsResponse,
 )
 from espdrone_msgs.srv import Motors, MotorsRequest, MotorsResponse
 
@@ -126,6 +126,7 @@ class EspdroneROS:
         enable_pose_tf_publisher: bool,
         enable_logging_setpoint: bool,
         camera_info_file: str,
+        params_file: str,
     ):
         self._tf_prefix = tf_prefix
         self._is_emergency = False
@@ -146,6 +147,7 @@ class EspdroneROS:
         self._enable_pose_tf_publisher = enable_pose_tf_publisher
         self._enable_logging_setpoint = enable_logging_setpoint
         self._camera_info_file = camera_info_file
+        self._params_file = params_file
         self._global_frame = "world"
         self._camera_info = None
         self._log_init = False
@@ -357,7 +359,6 @@ class EspdroneROS:
         while not self._param_handler.is_updated and self._is_connected:
             rospy.loginfo_throttle(1, f"[{self._tf_prefix}]: Waiting for param update")
         if self._is_connected:
-            rospy.loginfo(f"[{self._tf_prefix}] Updating parameters...")
             param_values: Dict[str, Dict[str, float]] = self._param_handler.values
             for group in param_values.keys():
                 for name in param_values[group].keys():
@@ -368,6 +369,15 @@ class EspdroneROS:
                 UpdateParams,
                 self.update_params,
             )
+            if self._params_file:
+                try:
+                    with open(self._params_file) as file:
+                        params: Dict = yaml.safe_load(file)
+                        self.set_params(params)
+                        rospy.loginfo(f"[{self._tf_prefix}]: Parameters updated: {params}")
+                except Exception as e:
+                    rospy.logerr(e)
+
             self._param_init = True
 
     def _initialize_log(self):
@@ -457,6 +467,7 @@ class EspdroneROS:
             remove_espdrone_request = RemoveEspdroneRequest()
             remove_espdrone_request.uri = self._ed.link_uri
             remove_espdrone_service.call(remove_espdrone_request)
+            
 
     def _disconnect(self, link_uri):
         if self._is_connected:
@@ -507,6 +518,7 @@ class EspdroneROS:
     def __unregister_publishers(self):
         if self._enable_logging_image:
             self._pub_image.unregister()
+            self._pub_camera_info.unregister()
         if self._enable_logging_battery:
             self._pub_battery.unregister()
         if self._enable_logging_motor:
@@ -564,12 +576,21 @@ class EspdroneROS:
             self._is_emergency = False
         return SetBoolResponse(success=self._is_emergency)
 
+    def set_params(self, params:Dict[str, float]):
+        for name, value in params.items():
+            rospy.set_param("/" + self._tf_prefix + "/" + name, value)
+        
+        param_req = UpdateParamsRequest()
+        param_req.params = params.keys()
+        param_service = rospy.ServiceProxy(self._tf_prefix + "/update_params", UpdateParams)
+        param_service.call(param_req)
+
     def update_param(self, group: str, name: str):
         value = rospy.get_param("/" + self._tf_prefix + "/" + group + "/" + name)
         self._param_handler.set_value(group + "." + name, value)
 
     def update_params(self, req: UpdateParamsRequest):
-        rospy.loginfo(f"[{self._tf_prefix}]: Update parameters")
+        rospy.loginfo(f"[{self._tf_prefix}]: Updating parameters")
         p: str
         for p in req.params:
             group, name = p.split("/")
@@ -578,10 +599,10 @@ class EspdroneROS:
                 rospy.logerr(
                     f"[{self._tf_prefix}]: Could not find param {group}/{name}"
                 )
-                return True
+                return UpdateParamsResponse()
 
             self.update_param(group, name)
-        return True
+        return UpdateParamsResponse()
 
     def cmd_hover_setpoint(self, msg: Hover):
         vx = msg.vx
@@ -997,6 +1018,7 @@ class EspdroneServer:
             req.enable_pose_tf_publisher,
             req.enable_logging_setpoint,
             req.camera_info_file,
+            req.params_file
         )
         if ed._is_connected:
             self._espdrones[req.uri] = ed
@@ -1015,7 +1037,6 @@ class EspdroneServer:
 
         rospy.logwarn(f"Espdrone ip {req.uri} removed")
         return RemoveEspdroneResponse(success=True)
-
 
 def main():
     rospy.init_node("espdrone_server")

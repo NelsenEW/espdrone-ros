@@ -21,6 +21,7 @@ def main():
     enable_pose_tf_publisher = rospy.get_param("~enable_pose_tf_publisher", True)
     enable_logging_setpoint = rospy.get_param("~enable_logging_setpoint", True)
     camera_info_file = rospy.get_param("~camera_info_file", "")
+    params_file = rospy.get_param("~custom_params_file","")
 
     rospy.loginfo("wait_for_service /add_espdrone")
     add_espdrone_service = rospy.ServiceProxy("/add_espdrone", AddEspdrone)
@@ -43,7 +44,7 @@ def main():
     add_espdrone_request.enable_pose_tf_publisher = enable_pose_tf_publisher
     add_espdrone_request.enable_logging_setpoint = enable_logging_setpoint
     add_espdrone_request.camera_info_file = camera_info_file
-
+    add_espdrone_request.params_file = params_file
     generic_log_topics = rospy.get_param("~genericLogTopics", list())
     generic_log_topic_frequencies = rospy.get_param("~genericLogTopicFrequencies", list())
 
