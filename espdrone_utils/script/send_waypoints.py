@@ -9,6 +9,7 @@ import rospy
 from geometry_msgs.msg import PoseStamped
 from espdrone_msgs.srv import GoTo, GoToRequest
 from espdrone_msgs.srv import Takeoff, TakeoffRequest
+from espdrone_msgs.srv import Land, LandRequest
 from std_srvs.srv import SetBool, SetBoolRequest
 
 
@@ -20,12 +21,13 @@ class WaypointSender:
         self._current_pos = [0]*3
 
         # Thread for requesting emergency.
-        self._emg_request_thread = Thread(target=self.__check_emg_request, daemon=True)
+        self._emg_request_thread = Thread(target=self.__check_emg_request)
         self._emg_request_event = Event()
 
         rospy.Subscriber(f"/{self._drone_name}/pose", PoseStamped, self.__pose_callback)
         self._goto_service = rospy.ServiceProxy(f"/{self._drone_name}/go_to", GoTo)
         self._takeoff_service = rospy.ServiceProxy(f"/{self._drone_name}/takeoff", Takeoff)
+        self._land_service = rospy.ServiceProxy(f"/{self._drone_name}/land", Land)
         self._emergency_service = rospy.ServiceProxy(f"/{self._drone_name}/emergency", SetBool)
         
         rospy.loginfo(f"[{self._drone_name}] Waiting for services...")
@@ -41,7 +43,7 @@ class WaypointSender:
         rospy.loginfo(f"[{self._drone_name}] Waypoints to follow: {waypoints_list}")
 
         takeoff_request= TakeoffRequest()
-        takeoff_request.height = 0.3
+        takeoff_request.height = 0.0
         takeoff_request.duration = rospy.Duration(3)
         self._takeoff_service.call(takeoff_request)
         rospy.sleep(3)
@@ -55,6 +57,7 @@ class WaypointSender:
             goto_request.goal.x = current_waypoint[0]
             goto_request.goal.y = current_waypoint[1]
             goto_request.goal.z = current_waypoint[2]
+            goto_request.yaw = current_waypoint[3]   
             self._goto_service.call(goto_request)
             rospy.loginfo(f"[{self._drone_name}] go_to requested to {current_waypoint}")
 
@@ -63,12 +66,18 @@ class WaypointSender:
                 if self._emg_request_event.is_set():
                     break
             
-            waypoint_delay = current_waypoint[3]
+            waypoint_delay = current_waypoint[-1]
             rospy.loginfo(f"[{self._drone_name}] Waypoint reached, delaying for {waypoint_delay} seconds")
             rospy.sleep(waypoint_delay)
             waypoints_list.pop(0)
-        
-        # TODO: send land request!
+        # land_request= LandRequest()
+        # land_request.height = 0.3
+        # land_request.duration = rospy.Duration(3)
+        # self._land_service.call(land_request)
+        emergency_request = SetBoolRequest(True)
+        self._emergency_service.call(emergency_request)
+        self._emg_request_event.set()
+        self._emg_request_thread.join()
 
 
     def __pose_callback(self, data: PoseStamped):
@@ -79,14 +88,15 @@ class WaypointSender:
     def __check_emg_request(self):
         emergency_request = SetBoolRequest(True)
         self.__wait_for_key('e')
-        self._emergency_service.call(emergency_request)
-        self._emg_request_event.set()
-        rospy.logerr(f"[{self._drone_name}] Emergency requested!")
+        if not self._emg_request_event.is_set():
+            self._emergency_service.call(emergency_request)
+            self._emg_request_event.set()
+            rospy.logerr(f"[{self._drone_name}] Emergency requested!")
     
     def __wait_for_key(self, key):
         filedescriptors = termios.tcgetattr(sys.stdin)
         tty.setcbreak(sys.stdin)
-        while True:
+        while not self._emg_request_event.is_set():
             if sys.stdin.read(1) == key:
                 termios.tcsetattr(sys.stdin, termios.TCSADRAIN,filedescriptors)
                 return

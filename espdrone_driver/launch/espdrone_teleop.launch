@@ -1,4 +1,0 @@
-<?xml version="1.0"?>
-<launch>
-    <node pkg="teleop_twist_keyboard" type = "teleop_twist_keyboard.py" name="teleop_twist" output="screen" ns="espdrone_108"/>
-</launch>

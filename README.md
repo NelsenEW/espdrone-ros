@@ -11,6 +11,7 @@ ROS stack for Espdrone, with the following features:
 * Support for [Espdrone](https://github.com/NelsenEW/espdrone-nh)
 * Publishes on-board sensors in ROS standard message formats, and custom message formats.
 * Supports ROS parameters to reconfigure espdrone parameters
+* Enable console debugging from Espdrone.
 * Support for using multiple Espdrone control under STA mode.
 * Depends on the [espdrone-lib-python](https://github.com/NelsenEW/espdrone-lib-python)
 
@@ -211,7 +212,7 @@ Send the stop command to the drone with the following request arguments:
 #### go_to
 Send the go_to command to the drone with the following request arguments:
 * goal: send the target x, y, z coordinate in m.
-* yaw: send the target yaw in radians.
+* yaw: send the target yaw in degrees.
 * duration: the amount of time taken to get to the desired setpoint.
 * relative: use relative setpoint positioning system if set to true. If it is set to false, the setpoint is with respect to the absolute coordinate system.
 * groupMask: not used, set to 0

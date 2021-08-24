@@ -369,6 +369,7 @@ class EspdroneROS:
                 UpdateParams,
                 self.update_params,
             )
+            self._is_emergency = bool(rospy.get_param("/" + self._tf_prefix + "/stabilizer/stop"))
             if self._params_file:
                 try:
                     with open(self._params_file) as file:
@@ -377,7 +378,6 @@ class EspdroneROS:
                         rospy.loginfo(f"[{self._tf_prefix}]: Parameters updated: {params}")
                 except Exception as e:
                     rospy.logerr(e)
-
             self._param_init = True
 
     def _initialize_log(self):
@@ -558,19 +558,21 @@ class EspdroneROS:
         return self._disconnect(self._ed.link_uri)
 
     def emergency(self, req: SetBoolRequest):
-        if not self._is_emergency and req.data:
+        if req.data:
             rospy.logerr(f"[{self._tf_prefix}]: Emergency requested!")
-            self._localization_handler.send_emergency_stop()
+            for _ in range(3):
+                self._localization_handler.send_emergency_stop()
             rospy.set_param("/" + self._tf_prefix + "/stabilizer/stop", True)
             self._is_emergency = True
             self._is_flying = False
-        elif self._is_emergency and not req.data:
+        else:
             # send zero setpoint for thrust-lock and in case
             # the previous zero setpoint after emergency failed
             for _ in range(50):
                 self._commander.send_setpoint(0, 0, 0, 0)
             # Reset Espdrone stop
-            self._localization_handler.send_emergency_reset()
+            for _ in range(3):
+                self._localization_handler.send_emergency_reset()
             rospy.set_param("/" + self._tf_prefix + "/stabilizer/stop", False)
             rospy.logerr(f"[{self._tf_prefix}]: Emergency reset")
             self._is_emergency = False
@@ -827,11 +829,9 @@ class EspdroneROS:
 
     def on_console(self, msg: str):
         self.__static_message_buffer += msg
-        if "\n" in self.__static_message_buffer:
-            msgs = self.__static_message_buffer.splitlines()
-            self.__static_message_buffer = msg.pop()
-            for msg in msgs:
-                rospy.loginfo(f"[{self._tf_prefix}]: ED Console: {msg}")
+        if "\n" in self.__static_message_buffer:    
+            rospy.loginfo(f"[{self._tf_prefix}]: ED Console: {self.__static_message_buffer.rstrip()}")
+            self.__static_message_buffer = ""
 
     def set_group_mask(self, req: SetGroupMaskRequest):
         rospy.loginfo(f"[{self._tf_prefix}]: SetGroupMask requested")
@@ -880,7 +880,7 @@ class EspdroneROS:
             req.goal.x,
             req.goal.y,
             req.goal.z,
-            req.yaw,
+            math.radians(req.yaw),
             req.duration.to_sec(),
             req.relative,
             req.groupMask,
