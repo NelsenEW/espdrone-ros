@@ -12,11 +12,11 @@
 
   # attitude PID gains
   pid_attitude/pitch_kd: 0.0,
-  pid_attitude/pitch_ki: 2.5,
-  pid_attitude/pitch_kp: 5.3,
+  pid_attitude/pitch_ki: 1.5,
+  pid_attitude/pitch_kp: 3.3,
   pid_attitude/roll_kd: 0.0,
-  pid_attitude/roll_ki: 2.5,
-  pid_attitude/roll_kp: 5.3,
+  pid_attitude/roll_ki: 1.5,
+  pid_attitude/roll_kp: 3.3,
   pid_attitude/yaw_kd: 0.35,
   pid_attitude/yaw_ki: 1.0,
   pid_attitude/yaw_kp: 6.0,

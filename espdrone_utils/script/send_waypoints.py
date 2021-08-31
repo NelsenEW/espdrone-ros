@@ -43,7 +43,7 @@ class WaypointSender:
         rospy.loginfo(f"[{self._drone_name}] Waypoints to follow: {waypoints_list}")
 
         takeoff_request= TakeoffRequest()
-        takeoff_request.height = 0.0
+        takeoff_request.height = 0.3
         takeoff_request.duration = rospy.Duration(3)
         self._takeoff_service.call(takeoff_request)
         rospy.sleep(3)
@@ -70,14 +70,11 @@ class WaypointSender:
             rospy.loginfo(f"[{self._drone_name}] Waypoint reached, delaying for {waypoint_delay} seconds")
             rospy.sleep(waypoint_delay)
             waypoints_list.pop(0)
-        # land_request= LandRequest()
-        # land_request.height = 0.3
-        # land_request.duration = rospy.Duration(3)
-        # self._land_service.call(land_request)
-        emergency_request = SetBoolRequest(True)
-        self._emergency_service.call(emergency_request)
-        self._emg_request_event.set()
-        self._emg_request_thread.join()
+        land_request= LandRequest()
+        land_request.height = 0.10
+        land_request.duration = rospy.Duration(5)
+        self._land_service.call(land_request)
+        rospy.sleep(5)
 
 
     def __pose_callback(self, data: PoseStamped):

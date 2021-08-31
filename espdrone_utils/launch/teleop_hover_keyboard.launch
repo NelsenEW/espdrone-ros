@@ -1,9 +1,9 @@
 <?xml version="1.0"?>
 <launch>
-    <arg name="drone_name" default="espdrone_104"/>
+    <arg name="drone_name" default="espdrone_107"/>
     <arg name="speed" default="0.3"/>
     <arg name="turn" default="20"/>
-    <node pkg="espdrone_utils" type = "teleop_hover_keyboard.py" name="teleop_twist" output="screen">
+    <node pkg="espdrone_utils" type = "teleop_hover_keyboard.py" name="teleop_twist_$(arg drone_name)" output="screen" launch-prefix="xterm -T $(arg drone_name)_teleop -fa 'Monospace' -fs 12 -e">
         <remap from="cmd_hover" to="/$(arg drone_name)/cmd_hover"/>
         <param name="drone_name" type="string" value="$(arg drone_name)"/>
         <param name="speed" type="double" value="$(arg speed)"/>

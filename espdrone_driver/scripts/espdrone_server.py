@@ -60,6 +60,7 @@ from espdrone_msgs.msg import TofMeasurement
 
 # ROS Msgs & Srvs
 from std_msgs.msg import Empty
+from std_srvs.srv import Empty as EmptySrv, EmptyRequest
 from std_srvs.srv import Trigger, TriggerRequest, TriggerResponse
 from std_srvs.srv import SetBool, SetBoolRequest, SetBoolResponse
 from geometry_msgs.msg import Twist
@@ -349,6 +350,9 @@ class EspdroneROS:
         )
         self._service_emergency = rospy.Service(
             self._tf_prefix + "/emergency", SetBool, self.emergency
+        )
+        self._service_task_dump = rospy.Service(
+            self._tf_prefix + "task_dump", EmptySrv, self.task_dump
         )
         self._service_motor_set = rospy.Service(
             self._tf_prefix + "/motor_set", Motors, self.motor_set
@@ -914,6 +918,9 @@ class EspdroneROS:
             )
 
         return MotorsResponse()
+
+    def task_dump(self, *_):
+        self._param_handler.set_value("system.taskDump", 1)
 
     # Warning not yet implemented in the ESPDRONE FIRMWARE -> SPIFFS SHOULD BE USED
     def upload_trajectory(self, req: UploadTrajectoryRequest):
