@@ -51,10 +51,7 @@ This package contains the driver. In order to support multiple Espdrones simulta
 The server does not communicate to any Espdrone initially, hence, `espdrone_add` needs to be used. In addition, the server will automatically remove the drone when connection to the drone is lost.
 
 The server can be run with the following command:
-``` bash
-rosrun espdrone_driver espdrone_server.py
-```
-If you want to launch it with ros master, you can also use the following command:
+
 ``` bash
 roslaunch espdrone_driver espdrone_server.launch
 ```
@@ -110,7 +107,7 @@ This allows us to control the velocity of the drone with respect to the world. T
 * yawrate: control the yaw rate in degrees/s.
 
 #### cmd_hover
-This control mode where the height is send as an absolute setpoint (intended to be the distance to the surface under the Espdrone).
+This allows us to control the velocity of the drone where the height is send as an absolute setpoint (intended to be the distance to the surface under the Espdrone).
 * vx, vy: control the x and y velocity in m/s.
 * yawrate: control the yaw rate in degrees/s.
 * zDistance: control the absolute height from the surface to the drone.
@@ -227,6 +224,11 @@ Send the specific PWM value from 0 to 65535 to control all of the motors with th
 
 #### start_trajectory
 *Not yet implemented in the ESPDrone firmware*
+
+#### task_dump
+Get all the tasks that is running on the drone's CPU and their usage.
+#### emergency
+Set this to true to send emergency and set this to false to reset emergency.
 
 #### is_flying
 Get the flying status of the drone. The response with attribute success is set to **True** if the drone is flying.

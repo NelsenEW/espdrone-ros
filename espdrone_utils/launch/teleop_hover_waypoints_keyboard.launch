@@ -1,0 +1,17 @@
+<?xml version="1.0"?>
+<launch>
+    <arg name="drone_name" default="espdrone_107"/>
+    <arg name="speed" default="0.3"/>
+    <arg name="turn" default="20"/>
+    <arg name="waypoints_list" default="[[0.15, 0, 1.2, 0, 3], [0.15, 0, 1.2, 90, 3], [0.15, 0, 1.2, 0, 3], [0.15, 0, 1.2, -90, 3], [0.15, 0, 1.2, 0, 1]]"/>
+    <arg name="transition_duration" default="10.0"/>
+    <arg name="goal_threshold" default="0.10"/>
+    <node pkg="espdrone_utils" type = "teleop_hover_waypoints_keyboard.py" name="teleop_hover_$(arg drone_name)" output="screen" launch-prefix="xterm -T $(arg drone_name)_teleop -fa 'Monospace' -fs 12 -e">
+        <param name="drone_name" type="string" value="$(arg drone_name)"/>
+        <param name="speed" type="double" value="$(arg speed)"/>
+        <param name="turn" type="double" value="$(arg turn)"/>
+        <param name="waypoints_list" type="string" value="$(arg waypoints_list)"/>
+        <param name="transition_duration" type="double" value="$(arg transition_duration)"/>
+        <param name="goal_threshold" type="double" value="$(arg goal_threshold)"/>
+    </node>
+</launch>

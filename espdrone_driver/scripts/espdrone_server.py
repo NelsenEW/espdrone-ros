@@ -352,7 +352,7 @@ class EspdroneROS:
             self._tf_prefix + "/emergency", SetBool, self.emergency
         )
         self._service_task_dump = rospy.Service(
-            self._tf_prefix + "task_dump", EmptySrv, self.task_dump
+            self._tf_prefix + "/task_dump", EmptySrv, self.task_dump
         )
         self._service_motor_set = rospy.Service(
             self._tf_prefix + "/motor_set", Motors, self.motor_set
