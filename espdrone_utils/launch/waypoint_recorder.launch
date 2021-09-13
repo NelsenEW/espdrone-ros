@@ -1,0 +1,16 @@
+<?xml version="1.0"?>
+<launch>
+    <arg name="drone_name" default="espdrone"/>
+    <arg name="pose_topic" default="aruco_map_pose_tracker/pose"/>
+    <arg name="drone_config_dir" default="$(find espdrone_aruco_bringup)/config/espdrone"/>
+    <arg name="num_samples" default="20"/>
+
+    <node pkg="espdrone_utils" type="waypoint_recorder.py" name="waypoint_recorder" output="screen" ns="/$(arg drone_name)"
+          required="true" launch-prefix="xterm -T /$(arg drone_name)/waypoint_recorder -fa 'Monospace' -fs 12 -e">
+
+        <param name="drone_name" type="string" value="$(arg drone_name)"/>
+        <param name="pose_topic" type="string" value="$(arg pose_topic)"/>
+        <param name="drone_config_dir" type="string" value="$(arg drone_config_dir)"/>
+        <param name="num_samples" type="int" value="$(arg num_samples)"/>
+    </node>
+</launch>

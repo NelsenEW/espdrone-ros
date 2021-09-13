@@ -65,7 +65,10 @@ roslaunch espdrone_driver espdrone_add.launch
 This package contains all the custom messages and services for additional features from the espdrone-lib-python. The package is mainly used in the `espdrone_driver` package.
 
 ### Espdrone_utils
-This package contains a simple camera streamer and send waypoints scripts. The simple camera streamer does not require the use of `espdrone-lib-python`. The send waypoint script is used to provide list of waypoint for the drone to execute, which rely on custom services from the espdrone_msgs.
+This package contains utility scripts useful for development. It contains:  
+* Simple camera streamer; this camera streamer does not require `espdrone-lib-python` to run.
+* Waypoint recorder; launch this script to record the position of the drone (carried by hands) and save as waypoints. 
+* Waypoint follower and keyboard control script; this script is used to provide list of waypoint for the drone to follow, which rely on custom services from `espdrone_msgs`. Keyboard control with position hold is also possible with the script (e.g. if no control input is given, the drone will hover in place instead of drifting).
 
 ## ROS Features
 
