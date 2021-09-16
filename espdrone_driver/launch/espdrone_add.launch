@@ -22,7 +22,7 @@
   <arg name="camera_info_file" default=""/>
   
 
-  <node pkg="espdrone_driver" type="espdrone_add.py" name="espdrone_add" output="screen">
+  <node pkg="espdrone_driver" type="espdrone_add.py" name="espdrone_add_$(arg tf_prefix)" output="screen">
     <param name="uri" value="$(arg uri)" />
     <param name="tf_prefix" value="$(arg tf_prefix)" />
     <param name="roll_trim" value="$(arg roll_trim)" />
