@@ -14,7 +14,7 @@ from geometry_msgs.msg import PoseStamped
 import sys, select, termios, tty
 import numpy as np
 from tf.transformations import euler_from_quaternion
-
+from waypoint_recorder import WaypointRecorder
 
 msg = """
 Reading from the keyboard  and Publishing to Twist!
@@ -42,9 +42,14 @@ t : takeoff
 l : land
 m : run mission with waypoints
 SPACE : pause/play mission
+r : record new waypoint
+f : delete the last waypoint recorded
+v : save the waypoint recorded 
 Emergency Bindings:
 e : emergency
 CTRL-C to quit and emergency
+
+
 """
 
 moveBindings = {
@@ -164,7 +169,7 @@ class WaypointThread(threading.Thread):
                         (
                             (
                                 np.linalg.norm(
-                                    np.array(self._current_pos)
+                                    np.array(self._current_pos) 
                                     - np.array(current_waypoint[:3])
                                 )
                                 > self._goal_threshold
@@ -327,8 +332,11 @@ if __name__ == "__main__":
     waypoints_list = literal_eval(waypoints_list)
     transition_duration = rospy.get_param("~transition_duration", default=4)
     goal_threshold = rospy.get_param("~goal_threshold", default=0.05)
+    drone_config_dir = rospy.get_param("~drone_config_dir")
+    pose_topic = '/' + drone_name + '/aruco_map_pose_tracker/pose'
 
     waypoint_thread = WaypointThread(drone_name, transition_duration, goal_threshold)
+    recorder = WaypointRecorder(20, drone_name, pose_topic,drone_config_dir )
     if key_timeout == 0.0:
         key_timeout = None
 
@@ -378,6 +386,16 @@ if __name__ == "__main__":
                     blocking.set()
                 elif key == "m":
                     waypoint_thread.update(waypoints_list.copy())
+                elif key == 'r':
+                    recorder.collect_waypoints()
+                    print("Press r to record again, f to delete the last waypoint, and v to save")
+                elif key =="f":
+                    print("Removing the last waypoint")
+                    recorder.delete_waypoint()
+                elif key == "v":
+                    recorder.save_waypoint()
+                    waypoints_list = recorder.recorded_waypoints.copy()
+                
                 elif takeoff.is_set():
                     if key == "l":
                         waypoint_thread.update(list())
@@ -421,7 +439,8 @@ if __name__ == "__main__":
                         pub_thread.set_height(waypoint_thread.get_height())
                 # rospy.loginfo_throttle(
                 #     1, f"{blocking.is_set()}, {takeoff.is_set()}, {emergency}"
-                # )
+                # ) 
+
 
     except Exception as e:
         print(e)
