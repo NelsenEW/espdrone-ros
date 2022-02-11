@@ -97,14 +97,15 @@ class WaypointRecorder():
             wp_list_found = False
 
             for line_num, line in enumerate(config_file_content):
-                # Use 2 conditions in case comments lines inside the file contain 'waypoints_list'.
+                # Use 2 matching conditions in case 'waypoints_list' is found in comment lines.
                 if "waypoints_list" in line and "[[" in line:
                     config_file_content[line_num] = wp_config_string
                     wp_list_found = True
                     break
 
             if not wp_list_found:
-                config_file_content.append(wp_config_string)
+                config_file_content.append('\n'+wp_config_string)
+                # Prepend a newline before 'waypoints_list' to make sure 'waypoints_list' is appended on an entirely new line.
 
             file.seek(0)
             file.truncate()
@@ -117,7 +118,9 @@ class WaypointRecorder():
 
         quat = data.pose.orientation
         rpy_raw = tf.transformations.euler_from_quaternion([quat.x, quat.y, quat.z, quat.w])
-        yaw_raw = rpy_raw[2]*180/math.pi
+        yaw_raw = rpy_raw[2]*180/math.pi + 90
+        # The drone's coordinate system is rotated by the ROS transform 'world_to_marker_map_tf', affecting the recorded yaw angle too.
+        # Add 90 degrees to correct the recorded yaw angle.
 
         self._pose_raw.append([x_raw, y_raw, z_raw, yaw_raw])
 
